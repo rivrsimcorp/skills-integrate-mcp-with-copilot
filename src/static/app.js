@@ -157,4 +157,100 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Initialize app
   fetchActivities();
+
+  // Chatbot functionality
+  const chatbotContainer = document.getElementById("chatbot-container");
+  const chatbotToggle = document.getElementById("chatbot-toggle");
+  const chatbotClose = document.getElementById("chatbot-close");
+  const chatbotMessages = document.getElementById("chatbot-messages");
+  const chatbotInput = document.getElementById("chatbot-input");
+  const chatbotSend = document.getElementById("chatbot-send");
+
+  // Toggle chatbot visibility
+  chatbotToggle.addEventListener("click", () => {
+    chatbotContainer.classList.add("active");
+    chatbotToggle.style.display = "none";
+    chatbotInput.focus();
+  });
+
+  chatbotClose.addEventListener("click", () => {
+    chatbotContainer.classList.remove("active");
+    chatbotToggle.style.display = "flex";
+  });
+
+  // Send message function
+  async function sendMessage() {
+    const message = chatbotInput.value.trim();
+    
+    if (!message) return;
+
+    // Add user message to chat
+    addMessageToChat(message, "user");
+    chatbotInput.value = "";
+
+    // Show typing indicator
+    const typingIndicator = addTypingIndicator();
+
+    try {
+      // Send message to backend
+      const response = await fetch("/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message: message }),
+      });
+
+      const data = await response.json();
+
+      // Remove typing indicator
+      typingIndicator.remove();
+
+      // Add bot response to chat
+      if (response.ok) {
+        addMessageToChat(data.response, "bot");
+      } else {
+        addMessageToChat("Sorry, I encountered an error. Please try again.", "bot");
+      }
+    } catch (error) {
+      typingIndicator.remove();
+      addMessageToChat("Sorry, I'm having trouble connecting. Please try again.", "bot");
+      console.error("Chatbot error:", error);
+    }
+  }
+
+  // Add message to chat
+  function addMessageToChat(text, sender) {
+    const messageDiv = document.createElement("div");
+    messageDiv.className = `chatbot-message ${sender}-message`;
+    
+    const messageText = document.createElement("p");
+    messageText.textContent = text;
+    
+    messageDiv.appendChild(messageText);
+    chatbotMessages.appendChild(messageDiv);
+    
+    // Scroll to bottom
+    chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
+  }
+
+  // Add typing indicator
+  function addTypingIndicator() {
+    const typingDiv = document.createElement("div");
+    typingDiv.className = "chatbot-message bot-message typing-indicator";
+    typingDiv.innerHTML = '<p><span></span><span></span><span></span></p>';
+    chatbotMessages.appendChild(typingDiv);
+    chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
+    return typingDiv;
+  }
+
+  // Send message on button click
+  chatbotSend.addEventListener("click", sendMessage);
+
+  // Send message on Enter key
+  chatbotInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+      sendMessage();
+    }
+  });
 });
