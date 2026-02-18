@@ -8,8 +8,10 @@ for extracurricular activities at Mergington High School.
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
+from pydantic import BaseModel
 import os
 from pathlib import Path
+import re
 
 app = FastAPI(title="Mergington High School API",
               description="API for viewing and signing up for extracurricular activities")
@@ -130,3 +132,81 @@ def unregister_from_activity(activity_name: str, email: str):
     # Remove student
     activity["participants"].remove(email)
     return {"message": f"Unregistered {email} from {activity_name}"}
+
+
+# Chatbot models
+class ChatMessage(BaseModel):
+    message: str
+
+
+@app.post("/chat")
+def chat(chat_message: ChatMessage):
+    """Handle chatbot messages and provide responses about activities"""
+    user_message = chat_message.message.lower().strip()
+    
+    # Check for greeting
+    if any(greeting in user_message for greeting in ['hello', 'hi', 'hey', 'greetings']):
+        return {
+            "response": "Hello! I'm the Mergington High School Activities Assistant. I can help you find information about our extracurricular activities, schedules, and available spots. What would you like to know?"
+        }
+    
+    # Check for help request
+    if 'help' in user_message:
+        return {
+            "response": "I can help you with:\n• View all activities\n• Check activity schedules\n• See available spots\n• Get information about specific activities\n\nJust ask me questions like 'What activities are available?' or 'When is Chess Club?'"
+        }
+    
+    # List all activities
+    if any(keyword in user_message for keyword in ['list', 'show', 'what activities', 'all activities']):
+        activity_list = "\n".join([f"• {name}" for name in activities.keys()])
+        return {
+            "response": f"Here are all our extracurricular activities:\n\n{activity_list}\n\nWould you like to know more about any specific activity?"
+        }
+    
+    # Check for specific activity queries
+    for activity_name, details in activities.items():
+        if activity_name.lower() in user_message:
+            spots_left = details['max_participants'] - len(details['participants'])
+            participant_info = f"\nCurrent participants: {len(details['participants'])}/{details['max_participants']}"
+            
+            if 'schedule' in user_message or 'when' in user_message:
+                return {
+                    "response": f"{activity_name} meets {details['schedule']}."
+                }
+            elif 'spots' in user_message or 'available' in user_message or 'space' in user_message:
+                return {
+                    "response": f"{activity_name} has {spots_left} spots available out of {details['max_participants']} total."
+                }
+            else:
+                return {
+                    "response": f"**{activity_name}**\n\n{details['description']}\n\n**Schedule:** {details['schedule']}\n**Availability:** {spots_left} spots left{participant_info}"
+                }
+    
+    # Schedule-related queries
+    if 'schedule' in user_message or 'when' in user_message:
+        schedule_info = "\n".join([f"• {name}: {details['schedule']}" for name, details in activities.items()])
+        return {
+            "response": f"Here are the schedules for all activities:\n\n{schedule_info}"
+        }
+    
+    # Availability queries
+    if 'spots' in user_message or 'available' in user_message or 'space' in user_message:
+        availability = []
+        for name, details in activities.items():
+            spots_left = details['max_participants'] - len(details['participants'])
+            availability.append(f"• {name}: {spots_left} spots")
+        
+        return {
+            "response": f"Here's the availability for all activities:\n\n" + "\n".join(availability)
+        }
+    
+    # Sign up instructions
+    if 'sign up' in user_message or 'join' in user_message or 'register' in user_message:
+        return {
+            "response": "To sign up for an activity, please use the sign-up form on this page. Enter your email address and select the activity you'd like to join!"
+        }
+    
+    # Default response
+    return {
+        "response": "I'm not sure I understood that. Try asking me about:\n• Available activities\n• Activity schedules\n• Available spots\n• Specific activities by name\n\nOr just say 'help' for more information!"
+    }
