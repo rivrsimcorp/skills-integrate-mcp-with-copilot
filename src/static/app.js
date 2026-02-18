@@ -157,11 +157,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Initialize app
   fetchActivities();
-});
 
-
-// Chatbot functionality
-document.addEventListener("DOMContentLoaded", () => {
+  // Chatbot functionality
   const chatbotContainer = document.getElementById("chatbot-container");
   const chatbotToggle = document.getElementById("chatbot-toggle");
   const chatbotClose = document.getElementById("chatbot-close");
